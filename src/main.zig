@@ -17,13 +17,14 @@ pub fn main(init: std.process.Init) !void {
     var buf: [4096]u8 = undefined; //buffer used for reading files throughout the program
 
     if (res.args.run) |run| {
-        const command = apps.getFieldByName(run) catch |err| {
+        const app = apps.getFieldByName(run) catch |err| {
             std.log.err("expected App class, found {s}\n", .{run});
             return err;
         };
+        const command = try std.fs.path.join(arena, &.{ utils.ApplicationPath, app });
         std.debug.print("command: {s}\n", .{command});
-        _ = std.process.spawn(io, .{ .argv = &.{command}, .stdin = .ignore, .stdout = .ignore, .stderr = .ignore }) catch |err| {
-            std.log.err("command not \"{s}\" found", .{command});
+        _ = std.process.spawn(io, .{ .argv = &.{ "gio", "launch", command }, .stdin = .ignore, .stdout = .ignore, .stderr = .ignore }) catch |err| {
+            std.log.err("command \"{s}\" not found", .{command});
             return err;
         };
     } else if (res.args.set) |set| {
@@ -44,8 +45,11 @@ pub fn main(init: std.process.Init) !void {
         var reader = mime_file.reader(io, &buf);
         const relevant_category = try Parse.Fields.getFieldByNameRuntime(application, DefaultApps, &DefaultApps.mimeApps, ?[]const u8);
         if (relevant_category) |category| {
-            const mime_info = try Parse.Mime.findInFile(&reader.interface, try MimeInfo.Category.fromString(category), arena);
-            for (mime_info.?.apps) |app| {
+            const mime_info = try Parse.Mime.findInFile(&reader.interface, try MimeInfo.Category.fromString(category), arena) orelse {
+                std.log.err("no applications of kind '{s}' are available\n", .{application});
+                return;
+            };
+            for (mime_info.apps) |app| {
                 std.debug.print("app: {s}\n", .{app});
             }
         } else {

@@ -1,6 +1,3 @@
-const std = @import("std");
-const Self = @This();
-const parse = @import("parse.zig");
 browser: ?[]const u8 = null,
 terminal: ?[]const u8 = null,
 @"file-manager": ?[]const u8 = null,
@@ -125,3 +122,7 @@ pub const mimeApps: Self = .{
     .@"text-editor" = "text/plain",
     .terminal = "application/x-terminal-emulator",
 };
+
+const std = @import("std");
+const Self = @This();
+const parse = @import("parse.zig");

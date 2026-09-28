@@ -1,10 +1,7 @@
-const std = @import("std");
-const parse = @import("parse.zig");
-const clap = @import("clap");
-const DefaultApps = @import("defaultApps.zig");
+pub const ApplicationPath = "/usr/share/applications";
 
 pub fn globalApplocationsDir(init: std.process.Init) !std.Io.Dir {
-    return std.Io.Dir.openDirAbsolute(init.io, "/usr/share/applications", .{ .iterate = true });
+    return std.Io.Dir.openDirAbsolute(init.io, ApplicationPath, .{ .iterate = true });
 }
 pub fn homeSubDir(init: std.process.Init, sub_path: []const u8) !std.Io.Dir {
     const home_path = init.environ_map.get("HOME");
@@ -32,3 +29,8 @@ pub const Clap = struct {
         return .{ .key = in[0..idx], .value = in[idx + 1 ..] };
     }
 };
+
+const std = @import("std");
+const parse = @import("parse.zig");
+const clap = @import("clap");
+const DefaultApps = @import("defaultApps.zig");

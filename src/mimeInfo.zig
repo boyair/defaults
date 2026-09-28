@@ -1,7 +1,4 @@
 ///struct for storing info about mime
-const Self = @This();
-const std = @import("std");
-const Parse = @import("parse.zig");
 category: Category,
 apps: [][]const u8,
 original_line: ?[]const u8,
@@ -56,3 +53,7 @@ test "category from string" {
     try std.testing.expectEqualDeep("", category2.top);
     try std.testing.expectEqualDeep("", category2.sub);
 }
+
+const Self = @This();
+const std = @import("std");
+const Parse = @import("parse.zig");

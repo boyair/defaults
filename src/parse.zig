@@ -14,7 +14,7 @@ pub const Mime = struct {
                 continue;
             }
         }
-        return undefined;
+        return null;
     }
     pub fn parseLine(line: []const u8, allocator: std.mem.Allocator, clone_string: bool) (ParseError || error{OutOfMemory})!MimeInfo {
         const line_to_use = if (clone_string) try allocator.dupe(u8, line) else line;
