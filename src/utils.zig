@@ -18,19 +18,22 @@ pub fn updateConfig(apps: DefaultApps, config_dir: std.Io.Dir, io: std.Io) !void
     try config_writer.flush();
 }
 
-pub const Clap = struct {
-    /// struct used to parse KEY=VALUE pairs
-    pub const Parsers = .{ .str = clap.parsers.string, .set = parseSet };
-
-    /// Parse KEY=VALUE pairs
-    const SetPair = struct { key: []const u8, value: []const u8 };
-    fn parseSet(in: []const u8) parse.ParseError!SetPair {
-        const idx = std.mem.indexOf(u8, in, &.{'='}) orelse return parse.ParseError.TooFewItems;
-        return .{ .key = in[0..idx], .value = in[idx + 1 ..] };
+pub fn cloneString(original: []const u8, allocator: std.mem.Allocator) error{OutOfMemory}![]u8 {
+    const ret = try allocator.alloc(u8, original.len);
+    @memcpy(ret, original);
+    return ret;
+}
+/// USE IN TESTS ONLY!
+pub const Test = struct {
+    /// opens a file in the test folder.
+    pub fn openFile(name: []const u8, options: std.Io.Dir.OpenFileOptions) !std.Io.File {
+        const io = std.testing.io;
+        const path = try std.fs.path.join(std.testing.allocator, &.{ "test", name });
+        defer std.testing.allocator.free(path);
+        const file = try std.Io.Dir.cwd().openFile(io, path, options);
+        return file;
     }
 };
-
 const std = @import("std");
 const parse = @import("parse.zig");
-const clap = @import("clap");
 const DefaultApps = @import("defaultApps.zig");

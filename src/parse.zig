@@ -1,6 +1,8 @@
 /// ustilitiez used for text parsing within the program.
 const std = @import("std");
 const MimeInfo = @import("mimeInfo.zig");
+const clap = @import("clap");
+
 pub const Mime = struct {
     pub fn findInFile(reader: *std.Io.Reader, category: MimeInfo.Category, allocator: std.mem.Allocator) (ParseError || error{ OutOfMemory, ReadFailed, StreamTooLong })!?MimeInfo {
         while (try reader.takeDelimiter('\n')) |line| {
@@ -92,6 +94,17 @@ pub const ParseError = error{
     ItemMismatch,
 };
 
+pub const Clap = struct {
+    /// struct used to parse KEY=VALUE pairs
+    pub const Parsers = .{ .str = clap.parsers.string, .set = parseSet };
+
+    const SetPair = struct { key: []const u8, value: []const u8 };
+    /// Parse KEY=VALUE pairs
+    fn parseSet(in: []const u8) ParseError!SetPair {
+        const idx = std.mem.indexOf(u8, in, &.{'='}) orelse return ParseError.TooFewItems;
+        return .{ .key = in[0..idx], .value = in[idx + 1 ..] };
+    }
+};
 test "mime line parse" {
     const info = try Mime.parseLine("audio/x-mp3=audacious.desktop;;", std.testing.allocator, false);
     defer info.deinit(std.testing.allocator);

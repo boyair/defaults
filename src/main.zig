@@ -6,7 +6,7 @@ pub fn main(init: std.process.Init) !void {
     const applications_dir = try utils.globalApplocationsDir(init);
 
     var diag = clap.Diagnostic{};
-    var res = clap.parse(clap.Help, &params, utils.Clap.Parsers, init.minimal.args, .{ .diagnostic = &diag, .allocator = init.gpa }) catch |err| {
+    var res = clap.parse(clap.Help, &params, Parse.Clap.Parsers, init.minimal.args, .{ .diagnostic = &diag, .allocator = init.gpa }) catch |err| {
         try diag.reportToFile(init.io, .stderr(), err);
         return err;
     };
@@ -68,6 +68,7 @@ const clap = @import("clap");
 const utils = @import("utils.zig");
 const Parse = @import("parse.zig");
 const MimeInfo = @import("mimeInfo.zig");
+const desktopFileInfo = @import("desktopFileInfo.zig");
 const Help: []const u8 =
     \\-h, --help                Display this help and exit.
     \\-l, --log                 Display active config.
