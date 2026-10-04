@@ -7,40 +7,33 @@ is_application: bool = false,
 //TODO: add is_hidden parameter back once i know the syntex and what it does.
 //is_hidden: bool = false,
 command: ?[]const u8 = null,
-categories: ?[][]const u8 = null,
+categories: ?std.ArrayList([]const u8) = null,
 
 pub fn initParse(reader: *std.Io.Reader, allocator: std.mem.Allocator) !Self {
     var ret: Self = .{};
     while (try reader.takeDelimiter('\n')) |line| {
         //TODO: replace this line once i know what to do with a title
-        if (std.mem.trim(u8, line, &.{ ' ', '\t' }).len == 0 or line[0] == '[') continue;
+        if (Parse.trim(line).len == 0 or line[0] == '[' or line[0] == '#') continue;
         try parseLine(line, allocator, &ret);
     }
     return ret;
 }
 
 fn parseLine(line: []const u8, allocator: std.mem.Allocator, self: *Self) !void {
-    const trimmed = std.mem.trim(u8, line, &.{ ' ', '\t' });
-    const eq_idx = std.mem.find(u8, trimmed, &.{'='}) orelse {
-        std.log.err("failed to find a seperator\n", .{});
-        return Parse.ParseError.TooFewItems;
-    };
-    const key = trimmed[0..eq_idx];
-    const value = trimmed[eq_idx + 1 ..];
-    if (std.mem.eql(u8, key, "Type")) {
-        self.is_application = std.mem.eql(u8, value, "Application");
-    } else if (self.command == null and std.mem.eql(u8, key, "Exec")) {
-        self.command = try Utils.cloneString(value, allocator);
-        std.debug.print("allocated: {s}\n", .{self.command.?});
-    } else if (self.categories == null and std.mem.eql(u8, key, "Categories")) {
-        var it = std.mem.tokenizeAny(u8, value, &.{';'});
-        const category_count = std.mem.count(u8, value, &.{';'});
+    const trimmed = Parse.trim(line);
+    const key_val = try Parse.KeyValuePair.init(trimmed);
+    if (std.mem.eql(u8, key_val.key, "Type")) {
+        self.is_application = std.mem.eql(u8, key_val.value, "Application");
+    } else if (self.command == null and std.mem.eql(u8, key_val.key, "Exec")) {
+        self.command = try Utils.cloneString(key_val.value, allocator);
+    } else if (self.categories == null and std.mem.eql(u8, key_val.key, "Categories")) {
+        var it = std.mem.tokenizeAny(u8, key_val.value, &.{';'});
         //TODO: not assume there is no "; ;; ;;;..." pattern when deciding size.
-        self.categories = try allocator.alloc([]const u8, category_count);
+        self.categories = try .initCapacity(allocator, 2);
         var count: usize = 0;
         while (it.next()) |category| {
             if (category.len == 0) continue;
-            self.categories.?[count] = try Utils.cloneString(category, allocator);
+            try self.categories.?.append(allocator, try Utils.cloneString(category, allocator));
             count += 1;
         }
     }
@@ -50,13 +43,40 @@ pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
     if (self.command) |command| {
         allocator.free(command);
     }
-    if (self.categories) |categories| {
-        for (categories) |category| {
+    if (self.categories) |*categories| {
+        for (categories.items) |category| {
             allocator.free(category);
         }
-        allocator.free(categories);
+        categories.deinit(allocator);
     }
 }
+
+/// iterates over all .desktop files in dir and return an array
+/// with all file names whose categories section contains category param.
+pub fn getByCategory(category: []const u8, dir: std.Io.Dir, io: std.Io, allocator: std.mem.Allocator) !std.ArrayList([]const u8) {
+    var it = dir.iterate();
+    const buff = try allocator.alloc(u8, 4096);
+    defer allocator.free(buff);
+    var ret = std.ArrayList([]const u8);
+
+    while (try it.next(io)) |entery| {
+        if (entery.name.len >= 9 and Parse.endsWith(entery.name, ".desktop")) {
+            const file = try dir.openFile(io, entery.name, .{});
+            var reader = file.reader(io, buff);
+            var info: Self = try Self.initParse(&reader.interface, allocator);
+            defer info.deinit(allocator);
+            if (info.categories) |categories| {
+                for (categories.items) |cat| {
+                    if (std.mem.eql(u8, cat, category)) {
+                        ret.append(allocator, Utils.cloneString(entery.name, allocator));
+                    }
+                }
+            }
+        }
+    }
+    return ret;
+}
+
 test "init from file" {
     var buf: [4096]u8 = undefined;
     const file = try Utils.Test.openFile("Alacritty.desktop", .{});
@@ -65,3 +85,8 @@ test "init from file" {
     defer desktop_file_info.deinit(std.testing.allocator);
     try std.testing.expectEqualDeep("alacritty", desktop_file_info.command.?);
 }
+
+//test "print categories" {
+//    const folder = try std.Io.Dir.openDirAbsolute(std.testing.io, "/usr/share/applications", .{ .iterate = true });
+//    const terminals = try getByCategory("TerminalEmulator", folder, std.testing.io, std.testing.allocator);
+//}

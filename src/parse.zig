@@ -3,11 +3,23 @@ const std = @import("std");
 const MimeInfo = @import("mimeInfo.zig");
 const clap = @import("clap");
 
+pub fn endsWith(string: []const u8, end: []const u8) bool {
+    if (end.len > string.len)
+        return false;
+    if (end.len == 0)
+        return true;
+    return std.mem.eql(u8, string[string.len - end.len ..], end);
+}
+
+/// trims whitspaces
+pub fn trim(string: []const u8) []const u8 {
+    return std.mem.trim(u8, string, &.{ ' ', '\t' });
+}
 pub const Mime = struct {
     pub fn findInFile(reader: *std.Io.Reader, category: MimeInfo.Category, allocator: std.mem.Allocator) (ParseError || error{ OutOfMemory, ReadFailed, StreamTooLong })!?MimeInfo {
         while (try reader.takeDelimiter('\n')) |line| {
             //TODO: replace this line once i know what to do with a title
-            if (line[0] == '[') continue;
+            if (line[0] == '[' or line[0] == '#') continue;
             const info = try parseLine(line, allocator, true);
             if (std.mem.eql(u8, info.category.top, category.top) and std.mem.eql(u8, info.category.sub, category.sub)) {
                 return info;
@@ -21,7 +33,7 @@ pub const Mime = struct {
     pub fn parseLine(line: []const u8, allocator: std.mem.Allocator, clone_string: bool) (ParseError || error{OutOfMemory})!MimeInfo {
         const line_to_use = if (clone_string) try allocator.dupe(u8, line) else line;
 
-        const trimmed = std.mem.trim(u8, line_to_use, &.{ ' ', '\t' });
+        const trimmed = trim(line);
         const eq_idx = std.mem.find(u8, trimmed, &.{'='}) orelse {
             std.log.err("failed to find a seperator\n", .{});
             return ParseError.TooFewItems;
@@ -87,6 +99,17 @@ pub const Fields = struct {
     }
 };
 
+pub const KeyValuePair = struct {
+    const Self = @This();
+    key: []const u8,
+    value: []const u8,
+
+    pub fn init(string: []const u8) ParseError!Self {
+        const idx = std.mem.indexOf(u8, string, &.{'='}) orelse return ParseError.TooFewItems;
+        return .{ .key = string[0..idx], .value = string[idx + 1 ..] };
+    }
+};
+/// Parse KEY=VALUE pairs
 pub const ParseError = error{
     TooManyItems,
     TooFewItems,
@@ -96,14 +119,7 @@ pub const ParseError = error{
 
 pub const Clap = struct {
     /// struct used to parse KEY=VALUE pairs
-    pub const Parsers = .{ .str = clap.parsers.string, .set = parseSet };
-
-    const SetPair = struct { key: []const u8, value: []const u8 };
-    /// Parse KEY=VALUE pairs
-    fn parseSet(in: []const u8) ParseError!SetPair {
-        const idx = std.mem.indexOf(u8, in, &.{'='}) orelse return ParseError.TooFewItems;
-        return .{ .key = in[0..idx], .value = in[idx + 1 ..] };
-    }
+    pub const Parsers = .{ .str = clap.parsers.string, .set = KeyValuePair.init };
 };
 test "mime line parse" {
     const info = try Mime.parseLine("audio/x-mp3=audacious.desktop;;", std.testing.allocator, false);

@@ -14,7 +14,7 @@ pub fn initParse(file: []const u8, allocator: std.mem.Allocator) parse.ParseErro
     var line_reader = std.mem.splitScalar(u8, file, '\n');
     var line_number: usize = 1;
     while (line_reader.next()) |line| {
-        if (std.mem.trim(u8, line, &.{ ' ', '\t' }).len == 0) continue; //ignore empty or whitespaces lines
+        if (parse.trim(line).len == 0) continue; //ignore empty or whitespaces lines
         const result = parseLine(line, allocator) catch |err| {
             std.log.err("failed to read line: {d}\n", .{line_number});
             return err;
@@ -65,7 +65,7 @@ fn parseLine(line: []const u8, allocator: std.mem.Allocator) parse.ParseError!Ap
 
     // get class string
     if (split.next()) |class| {
-        const trimmed = std.mem.trim(u8, class, &.{' '});
+        const trimmed = parse.trim(class);
         ret.class = allocator.alloc(u8, trimmed.len) catch unreachable;
         @memcpy(ret.class, trimmed);
     } else {
@@ -74,7 +74,7 @@ fn parseLine(line: []const u8, allocator: std.mem.Allocator) parse.ParseError!Ap
 
     // get name string
     if (split.next()) |name| {
-        const trimmed = std.mem.trim(u8, name, &.{' '});
+        const trimmed = parse.trim(name);
         ret.name = allocator.alloc(u8, trimmed.len) catch unreachable;
         @memcpy(ret.name, trimmed);
     } else {
@@ -121,6 +121,7 @@ pub const mimeApps: Self = .{
     .@"video-player" = "video/mp4",
     .@"text-editor" = "text/plain",
     .terminal = "application/x-terminal-emulator",
+    .@"file-manager" = "inode/directory",
 };
 
 const std = @import("std");

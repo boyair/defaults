@@ -15,6 +15,7 @@ pub fn main(init: std.process.Init) !void {
     var apps = try DefaultApps.initParse(try config_dir.readFileAlloc(io, "defaults.csv", arena, .unlimited), arena);
 
     var buf: [4096]u8 = undefined; //buffer used for reading files throughout the program
+    var console_writer = Io.File.stdout().writer(io, &buf);
 
     if (res.args.run) |run| {
         const app = apps.getFieldByName(run) catch |err| {
@@ -35,9 +36,8 @@ pub fn main(init: std.process.Init) !void {
         try utils.updateConfig(apps, config_dir, io);
         std.log.info("set {s} to {s}", set);
     } else if (res.args.log != 0) {
-        var write = Io.File.stdout().writer(io, &buf);
-        try apps.print(&write.interface, ':');
-        try write.flush();
+        try apps.print(&console_writer.interface, ':');
+        try console_writer.flush();
     } else if (res.args.help != 0) {
         std.log.info("\n{s}\n", .{Help});
     } else if (res.args.@"list-available") |application| {
@@ -50,7 +50,7 @@ pub fn main(init: std.process.Init) !void {
                 return;
             };
             for (mime_info.apps) |app| {
-                std.debug.print("app: {s}\n", .{app});
+                try console_writer.interface.print("app: {s}\n", .{app});
             }
         } else {
             std.log.err("requested category {s} does not support search yet. please search manually", .{application});
