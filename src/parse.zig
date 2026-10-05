@@ -2,6 +2,7 @@
 const std = @import("std");
 const MimeInfo = @import("mimeInfo.zig");
 const clap = @import("clap");
+const Utils = @import("utils.zig");
 
 pub fn endsWith(string: []const u8, end: []const u8) bool {
     if (end.len > string.len)
@@ -15,12 +16,24 @@ pub fn endsWith(string: []const u8, end: []const u8) bool {
 pub fn trim(string: []const u8) []const u8 {
     return std.mem.trim(u8, string, &.{ ' ', '\t' });
 }
+
+pub fn splitToArr(string: []const u8, delimiters: []const u8, allocator: std.mem.Allocator) error{OutOfMemory}!std.ArrayList([]const u8) {
+    var ret = try std.ArrayList([]const u8).initCapacity(allocator, 2);
+    var it = std.mem.tokenizeAny(u8, string, delimiters);
+    while (it.next()) |token| {
+        const trimmed = trim(token);
+        if (trimmed.len == 0) continue;
+        try ret.append(allocator, try Utils.cloneString(trimmed, allocator));
+    }
+    return ret;
+}
+
 pub const Mime = struct {
     pub fn findInFile(reader: *std.Io.Reader, category: MimeInfo.Category, allocator: std.mem.Allocator) (ParseError || error{ OutOfMemory, ReadFailed, StreamTooLong })!?MimeInfo {
         while (try reader.takeDelimiter('\n')) |line| {
             //TODO: replace this line once i know what to do with a title
             if (line[0] == '[' or line[0] == '#') continue;
-            const info = try parseLine(line, allocator, true);
+            var info = try MimeInfo.initParse(line, allocator);
             if (std.mem.eql(u8, info.category.top, category.top) and std.mem.eql(u8, info.category.sub, category.sub)) {
                 return info;
             } else {
@@ -30,48 +43,48 @@ pub const Mime = struct {
         }
         return null;
     }
-    pub fn parseLine(line: []const u8, allocator: std.mem.Allocator, clone_string: bool) (ParseError || error{OutOfMemory})!MimeInfo {
-        const line_to_use = if (clone_string) try allocator.dupe(u8, line) else line;
-
-        const trimmed = trim(line);
-        const eq_idx = std.mem.find(u8, trimmed, &.{'='}) orelse {
-            std.log.err("failed to find a seperator\n", .{});
-            return ParseError.TooFewItems;
-        };
-
-        var ret: MimeInfo = .{ .original_line = if (clone_string) line_to_use else null, .apps = undefined, .category = undefined };
-        //parse category
-        {
-            const category = trimmed[0..eq_idx];
-            const slash_idx = std.mem.find(u8, category, &.{'/'}) orelse {
-                std.log.err("failed to find a seperator\n", .{});
-                return ParseError.TooFewItems;
-            };
-            const top = category[0..slash_idx];
-            const sub = category[slash_idx + 1 ..];
-
-            ret.category.top = top;
-            ret.category.sub = sub;
-        }
-
-        //parse apps
-        {
-            const apps = trimmed[eq_idx + 1 ..];
-            const app_count = std.mem.count(u8, apps, &.{';'});
-            ret.apps = try allocator.alloc([]const u8, app_count);
-
-            var idx: usize = 0;
-            var tokens = std.mem.tokenizeAny(u8, apps, &.{';'});
-            while (tokens.next()) |token| {
-                if (token.len > 0) {
-                    ret.apps[idx] = token;
-                }
-                idx += 1;
-            }
-        }
-
-        return ret;
-    }
+    //    pub fn parseLine(line: []const u8, allocator: std.mem.Allocator, clone_string: bool) (ParseError || error{OutOfMemory})!MimeInfo {
+    //        const line_to_use = if (clone_string) try allocator.dupe(u8, line) else line;
+    //
+    //        const trimmed = trim(line);
+    //        const eq_idx = std.mem.find(u8, trimmed, &.{'='}) orelse {
+    //            std.log.err("failed to find a seperator\n", .{});
+    //            return ParseError.TooFewItems;
+    //        };
+    //
+    //        var ret: MimeInfo = undefined;
+    //        //parse category
+    //        {
+    //            const category = trimmed[0..eq_idx];
+    //            const slash_idx = std.mem.find(u8, category, &.{'/'}) orelse {
+    //                std.log.err("failed to find a seperator\n", .{});
+    //                return ParseError.TooFewItems;
+    //            };
+    //            const top = category[0..slash_idx];
+    //            const sub = category[slash_idx + 1 ..];
+    //
+    //            ret.category.top = top;
+    //            ret.category.sub = sub;
+    //        }
+    //
+    //        //parse apps
+    //        {
+    //            const apps = trimmed[eq_idx + 1 ..];
+    //            const app_count = std.mem.count(u8, apps, &.{';'});
+    //            ret.apps = try allocator.alloc([]const u8, app_count);
+    //
+    //            var idx: usize = 0;
+    //            var tokens = std.mem.tokenizeAny(u8, apps, &.{';'});
+    //            while (tokens.next()) |token| {
+    //                if (token.len > 0) {
+    //                    ret.apps[idx] = token;
+    //                }
+    //                idx += 1;
+    //            }
+    //        }
+    //
+    //        return ret;
+    //    }
 };
 
 pub const Fields = struct {
@@ -121,20 +134,20 @@ pub const Clap = struct {
     /// struct used to parse KEY=VALUE pairs
     pub const Parsers = .{ .str = clap.parsers.string, .set = KeyValuePair.init };
 };
-test "mime line parse" {
-    const info = try Mime.parseLine("audio/x-mp3=audacious.desktop;;", std.testing.allocator, false);
-    defer info.deinit(std.testing.allocator);
-    try std.testing.expectEqualDeep("audio", info.category.top);
-    try std.testing.expectEqualDeep("x-mp3", info.category.sub);
-    try std.testing.expectEqualDeep("audacious.desktop", info.apps[0]);
-    const allocated_info = try Mime.parseLine("text/x-c++hdr=micro.desktop;nvim.desktop;vim.desktop;", std.testing.allocator, true);
-    defer allocated_info.deinit(std.testing.allocator);
-    try std.testing.expectEqualDeep("text", allocated_info.category.top);
-    try std.testing.expectEqualDeep("x-c++hdr", allocated_info.category.sub);
-    try std.testing.expectEqualDeep("micro.desktop", allocated_info.apps[0]);
-    try std.testing.expectEqualDeep("nvim.desktop", allocated_info.apps[1]);
-    try std.testing.expectEqualDeep("vim.desktop", allocated_info.apps[2]);
-}
+//test "mime line parse" {
+//    const info = try Mime.parseLine("audio/x-mp3=audacious.desktop;;", std.testing.allocator, false);
+//    defer info.deinit(std.testing.allocator);
+//    try std.testing.expectEqualDeep("audio", info.category.top);
+//    try std.testing.expectEqualDeep("x-mp3", info.category.sub);
+//    try std.testing.expectEqualDeep("audacious.desktop", info.apps.items[0]);
+//    const allocated_info = try Mime.parseLine("text/x-c++hdr=micro.desktop;nvim.desktop;vim.desktop;", std.testing.allocator, true);
+//    defer allocated_info.deinit(std.testing.allocator);
+//    try std.testing.expectEqualDeep("text", allocated_info.category.top);
+//    try std.testing.expectEqualDeep("x-c++hdr", allocated_info.category.sub);
+//    try std.testing.expectEqualDeep("micro.desktop", allocated_info.apps.items[0]);
+//    try std.testing.expectEqualDeep("nvim.desktop", allocated_info.apps.items[1]);
+//    try std.testing.expectEqualDeep("vim.desktop", allocated_info.apps.items[2]);
+//}
 
 test "mime file parse" {
     //reading line 245 in test mime file
@@ -143,11 +156,21 @@ test "mime file parse" {
     const buffer: []u8 = try std.testing.allocator.alloc(u8, 4096);
     defer std.testing.allocator.free(buffer);
     var reader = file.reader(io, buffer);
-    const result = try Mime.findInFile(&reader.interface, .{ .top = "image", .sub = "png" }, std.testing.allocator) orelse {
+    var result = try Mime.findInFile(&reader.interface, .{ .top = "image", .sub = "png" }, std.testing.allocator) orelse {
         std.log.err("could nit find requested category {s}, {s}\n", .{ .top = "image", .sub = "png" });
         return ParseError.ItemMismatch;
     };
     defer result.deinit(std.testing.allocator);
-    try std.testing.expectEqualDeep("com.interversehq.qView.desktop", result.apps[0]);
-    try std.testing.expectEqualDeep("com.system76.CosmicViewer.desktop", result.apps[1]);
+    try std.testing.expectEqualDeep("com.interversehq.qView.desktop", result.apps.items[0]);
+    try std.testing.expectEqualDeep("com.system76.CosmicViewer.desktop", result.apps.items[1]);
+}
+test "split to array" {
+    const string = ",,banana , , ,\t ,apple, ,,orange";
+    var arr = try splitToArr(string, &.{','}, std.testing.allocator);
+    defer Utils.destroyStringArray(&arr, std.testing.allocator);
+
+    try std.testing.expectEqual(3, arr.items.len);
+    try std.testing.expectEqualDeep("banana", arr.items[0]);
+    try std.testing.expectEqualDeep("apple", arr.items[1]);
+    try std.testing.expectEqualDeep("orange", arr.items[2]);
 }

@@ -1,4 +1,10 @@
 pub const ApplicationPath = "/usr/share/applications";
+pub fn destroyStringArray(array: *std.ArrayList([]const u8), allocator: std.mem.Allocator) void {
+    for (array.items) |string| {
+        allocator.free(string);
+    }
+    array.deinit(allocator);
+}
 
 pub fn globalApplocationsDir(init: std.process.Init) !std.Io.Dir {
     return std.Io.Dir.openDirAbsolute(init.io, ApplicationPath, .{ .iterate = true });

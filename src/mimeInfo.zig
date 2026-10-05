@@ -1,7 +1,33 @@
 ///struct for storing info about mime
 category: Category,
-apps: [][]const u8,
-original_line: ?[]const u8,
+apps: std.ArrayList([]const u8),
+pub fn initParse(string: []const u8, allocator: std.mem.Allocator) (Parse.ParseError || error{OutOfMemory})!Self {
+    const line_to_use = Parse.trim(string);
+
+    var ret: Self = undefined;
+    const key_val = try Parse.KeyValuePair.init(line_to_use);
+    //parse category
+    {
+        const category = key_val.key;
+        const slash_idx = std.mem.find(u8, category, &.{'/'}) orelse {
+            std.log.err("failed to find a seperator\n", .{});
+            return Parse.ParseError.TooFewItems;
+        };
+        const top = category[0..slash_idx];
+        const sub = category[slash_idx + 1 ..];
+
+        ret.category.top = try Utils.cloneString(top, allocator);
+        ret.category.sub = try Utils.cloneString(sub, allocator);
+    }
+
+    //parse apps
+    {
+        const apps = key_val.value;
+        ret.apps = try Parse.splitToArr(apps, &.{';'}, allocator);
+    }
+
+    return ret;
+}
 
 pub const Category = struct {
     top: []const u8,
@@ -23,13 +49,15 @@ pub const Category = struct {
         const sub = string[slash_idx + 1 ..];
         return .{ .top = top, .sub = sub };
     }
+    pub fn deinit(self: Category, allocator: std.mem.Allocator) void {
+        allocator.free(self.top);
+        allocator.free(self.sub);
+    }
 };
 
-pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
-    allocator.free(self.apps);
-    if (self.original_line) |line| {
-        allocator.free(line);
-    }
+pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
+    Utils.destroyStringArray(&self.apps, allocator);
+    self.category.deinit(allocator);
 }
 
 test "category to string" {
@@ -54,6 +82,21 @@ test "category from string" {
     try std.testing.expectEqualDeep("", category2.sub);
 }
 
+test "init parse" {
+    var info = try initParse("audio/x-mp3=audacious.desktop;;", std.testing.allocator);
+    defer info.deinit(std.testing.allocator);
+    try std.testing.expectEqualDeep("audio", info.category.top);
+    try std.testing.expectEqualDeep("x-mp3", info.category.sub);
+    try std.testing.expectEqualDeep("audacious.desktop", info.apps.items[0]);
+    var allocated_info = try initParse("text/x-c++hdr=micro.desktop;nvim.desktop;vim.desktop;", std.testing.allocator);
+    defer allocated_info.deinit(std.testing.allocator);
+    try std.testing.expectEqualDeep("text", allocated_info.category.top);
+    try std.testing.expectEqualDeep("x-c++hdr", allocated_info.category.sub);
+    try std.testing.expectEqualDeep("micro.desktop", allocated_info.apps.items[0]);
+    try std.testing.expectEqualDeep("nvim.desktop", allocated_info.apps.items[1]);
+    try std.testing.expectEqualDeep("vim.desktop", allocated_info.apps.items[2]);
+}
 const Self = @This();
 const std = @import("std");
 const Parse = @import("parse.zig");
+const Utils = @import("utils.zig");
