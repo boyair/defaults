@@ -49,9 +49,10 @@ pub fn main(init: std.process.Init) !void {
                 std.log.err("no applications of kind '{s}' are available\n", .{application});
                 return;
             };
-            for (mime_info.apps) |app| {
+            for (mime_info.apps.items) |app| {
                 try console_writer.interface.print("app: {s}\n", .{app});
             }
+            try console_writer.flush();
         } else {
             std.log.err("requested category {s} does not support search yet. please search manually", .{application});
             return;
