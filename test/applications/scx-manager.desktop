@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=SCX Scheduler Manager
+Name[ja]=SCX スケジューラ・マネージャー
+GenericName=Scheduler Manager
+GenericName[ja]=スケジューラ・マネージャー
+Keywords=scheduler;sched-ext;scx;cpu;scheduling;kernel;
+Keywords[ja]=scheduler;sched-ext;scx;cpu;scheduling;kernel;スケジューラ;カーネル
+Exec=scx-manager
+Comment=Manage sched-ext (SCX) schedulers
+Icon=scx-manager
+Terminal=false
+StartupNotify=false
+StartupWMClass=scx-manager
+Categories=System;Settings;
+X-AppStream-Ignore=true

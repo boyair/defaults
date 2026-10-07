@@ -52,12 +52,12 @@ pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
 }
 
 /// iterates over all .desktop files in dir and return an array
-/// with all file names whose categories section contains category param.
+/// with all file names for which categories section contains category param.
 pub fn getByCategory(category: []const u8, dir: std.Io.Dir, io: std.Io, allocator: std.mem.Allocator) !std.ArrayList([]const u8) {
     var it = dir.iterate();
     const buff = try allocator.alloc(u8, 4096);
     defer allocator.free(buff);
-    var ret = std.ArrayList([]const u8);
+    var ret = try std.ArrayList([]const u8).initCapacity(allocator, 3);
 
     while (try it.next(io)) |entery| {
         if (entery.name.len >= 9 and Parse.endsWith(entery.name, ".desktop")) {
@@ -68,7 +68,7 @@ pub fn getByCategory(category: []const u8, dir: std.Io.Dir, io: std.Io, allocato
             if (info.categories) |categories| {
                 for (categories.items) |cat| {
                     if (std.mem.eql(u8, cat, category)) {
-                        ret.append(allocator, Utils.cloneString(entery.name, allocator));
+                        try ret.append(allocator, try Utils.cloneString(entery.name, allocator));
                     }
                 }
             }
@@ -86,7 +86,16 @@ test "init from file" {
     try std.testing.expectEqualDeep("alacritty", desktop_file_info.command.?);
 }
 
-//test "print categories" {
-//    const folder = try std.Io.Dir.openDirAbsolute(std.testing.io, "/usr/share/applications", .{ .iterate = true });
-//    const terminals = try getByCategory("TerminalEmulator", folder, std.testing.io, std.testing.allocator);
-//}
+test "get by category" {
+    const folder = try std.Io.Dir.openDirAbsolute(std.testing.io, "/usr/share/applications", .{ .iterate = true });
+    var terminals = try getByCategory("TerminalEmulator", folder, std.testing.io, std.testing.allocator);
+    defer Utils.destroyStringArray(&terminals, std.testing.allocator);
+    const terminal_apps = [_][]const u8{ "com.mitchellh.ghostty.desktop", "com.system76.CosmicTerm.desktop", "Alacritty.desktop" };
+    const non_terminal_apps = [_][]const u8{ "com.system76.CosmicSettings.Keyboard.desktop", "com.github.xournalpp.xournalpp.desktop", "com.shellyorg.shelly.desktop" };
+    for (terminal_apps) |app| {
+        try std.testing.expectEqual(true, Utils.contains(terminals, app));
+    }
+    for (non_terminal_apps) |app| {
+        try std.testing.expectEqual(false, Utils.contains(terminals, app));
+    }
+}

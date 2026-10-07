@@ -1,0 +1,16 @@
+[Desktop Entry]
+Name=On-screen Keyboard Button
+Name[en]=On-screen Keyboard Button
+Comment=Open the on-screen keyboard
+Comment[en]=Open the on-screen keyboard
+Type=Application
+Exec=cosmic-applet-osk
+Terminal=false
+Categories=COSMIC;
+Keywords=COSMIC;Applet;OSK;Keyboard;
+Keywords[en]=COSMIC;Applet;OSK;Keyboard;
+Icon=input-keyboard-symbolic
+StartupNotify=true
+NoDisplay=true
+X-CosmicApplet=true
+X-OverflowPriority=10

@@ -4,6 +4,7 @@ terminal: ?[]const u8 = null,
 @"text-editor": ?[]const u8 = null,
 @"video-player": ?[]const u8 = null,
 @"image-viewer": ?[]const u8 = null,
+@"pdf-viewer": ?[]const u8 = null,
 
 /// recives config file content as a string.
 /// parses it to initiallize a struct.
@@ -28,8 +29,8 @@ pub fn initParse(file: []const u8, allocator: std.mem.Allocator) parse.ParseErro
     }
     return ret;
 }
-pub fn getFieldByName(self: *const Self, field: []const u8) parse.ParseError![]const u8 {
-    return parse.Fields.getFieldByNameRuntime(field, Self, self, []const u8);
+pub fn getFieldByName(self: *const Self, field: []const u8) parse.ParseError!?[]const u8 {
+    return parse.Fields.getFieldByNameRuntime(field, Self, self, ?[]const u8);
 }
 
 pub fn setFieldByName(self: *Self, field: []const u8, value: []const u8) parse.ParseError!void {
@@ -120,10 +121,13 @@ pub const mimeApps: Self = .{
     .@"image-viewer" = "image/png",
     .@"video-player" = "video/mp4",
     .@"text-editor" = "text/plain",
-    .terminal = "application/x-terminal-emulator",
     .@"file-manager" = "inode/directory",
+    .@"pdf-viewer" = "application/pdf",
 };
 
 const std = @import("std");
 const Self = @This();
 const parse = @import("parse.zig");
+
+//const getString()
+//@typeInfo(ApplicationTypes).@"enum".fields

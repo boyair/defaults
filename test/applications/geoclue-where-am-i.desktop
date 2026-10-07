@@ -1,0 +1,19 @@
+[Desktop Entry]
+Name[ka]=სად ვარ?
+Name[oc]=Ont soi ?
+Name=Where am I?
+GenericName[ka]=გეოლოკაციის სადემონსტრაციო აპლიკაცია
+GenericName[oc]=Aplicacion de demostracion de geolocalizacion
+GenericName=Demo geolocation application
+Comment[ka]=იპოვეთ თქვენი მიმდინარე მდებარეობა
+Comment[oc]=Trobatz vòstra posicion actuala
+Comment=Find your current location
+Keywords[ka]=geolocation;გეოლოკაცია;
+Keywords[oc]=geolocalizacion;
+Keywords=geolocation;
+Exec=/usr/lib/geoclue-2.0/demos/where-am-i
+Icon=mark-location-symbolic
+NoDisplay=true
+Terminal=true
+Type=Application
+X-Geoclue-Reason=Allows your current location to be shown on terminal.

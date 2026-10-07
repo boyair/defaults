@@ -63,7 +63,7 @@ pub const Fields = struct {
     pub fn getFieldByNameRuntime(field: []const u8, strct: type, strct_ptr: *const strct, field_type: type) ParseError!field_type {
         inline for (std.meta.fields(strct)) |fld| {
             if (std.mem.eql(u8, field, fld.name)) {
-                return @field(strct_ptr.*, fld.name).?;
+                return @field(strct_ptr.*, fld.name);
             }
         }
         return ParseError.ItemMismatch;
@@ -112,7 +112,6 @@ test "split to array" {
     const string = ",,banana , , ,\t ,apple, ,,orange";
     var arr = try splitToArr(string, &.{','}, std.testing.allocator);
     defer Utils.destroyStringArray(&arr, std.testing.allocator);
-
     try std.testing.expectEqual(3, arr.items.len);
     try std.testing.expectEqualDeep("banana", arr.items[0]);
     try std.testing.expectEqualDeep("apple", arr.items[1]);

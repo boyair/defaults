@@ -6,6 +6,14 @@ pub fn destroyStringArray(array: *std.ArrayList([]const u8), allocator: std.mem.
     array.deinit(allocator);
 }
 
+pub fn contains(list: std.ArrayList([]const u8), needle: []const u8) bool {
+    for (list.items) |item| {
+        if (std.mem.eql(u8, item, needle)) return true;
+    }
+    return false;
+}
+// contains(list, "bar")
+
 pub fn globalApplocationsDir(init: std.process.Init) !std.Io.Dir {
     return std.Io.Dir.openDirAbsolute(init.io, ApplicationPath, .{ .iterate = true });
 }
@@ -43,3 +51,14 @@ pub const Test = struct {
 const std = @import("std");
 const parse = @import("parse.zig");
 const DefaultApps = @import("defaultApps.zig");
+
+test "contatins" {
+    var array = try std.ArrayList([]const u8).initCapacity(std.testing.allocator, 0);
+    defer array.deinit(std.testing.allocator);
+    const values = [_][]const u8{ "apple", "banana", "orange", "mango" };
+    try array.insertSlice(std.testing.allocator, 0, &values);
+    try std.testing.expectEqual(true, contains(array, "banana"));
+    try std.testing.expectEqual(true, contains(array, "mango"));
+    try std.testing.expectEqual(true, contains(array, "apple"));
+    try std.testing.expectEqual(false, contains(array, "tomato"));
+}
