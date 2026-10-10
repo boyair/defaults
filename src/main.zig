@@ -9,8 +9,9 @@ pub fn main(init: std.process.Init) !void {
 
     var diag = clap.Diagnostic{};
     var res = clap.parse(clap.Help, &params, Parse.Clap.Parsers, init.minimal.args, .{ .diagnostic = &diag, .allocator = init.gpa }) catch |err| {
+        std.log.err("incorrect input. try 'defaults -h' for help", .{});
         try diag.reportToFile(init.io, .stderr(), err);
-        return err;
+        return;
     };
     defer res.deinit();
 
@@ -45,9 +46,14 @@ pub fn main(init: std.process.Init) !void {
         try console_writer.flush();
     } else if (res.args.help != 0) {
         std.log.info("\n{s}\n", .{Help});
-    } else if (res.args.@"list-available") |application| {
+    } else if (res.args.available) |application| {
         var reader = mime_file.reader(io, &buf);
         try listAvailable(application, &reader.interface, applications_dir, io, &console_writer.interface, arena);
+        try console_writer.flush();
+    } else if (res.args.categories != 0) {
+        inline for (@typeInfo(DefaultApps).@"struct".fields) |field| {
+            try console_writer.interface.print("{s}\n", .{field.name});
+        }
         try console_writer.flush();
     } else {
         try utils.updateConfig(apps, config_dir, io);
@@ -89,9 +95,10 @@ const desktopFileInfo = @import("desktopFileInfo.zig");
 const Help: []const u8 =
     \\-h, --help                Display this help and exit.
     \\-l, --log                 Display active config.
-    \\--list-available <str>    Lists available applications.
+    \\-a, --available <str>     Lists available applications.
     \\-r, --run <str>           runs the chosen default app.
     \\-s, --set <set>           sets default app (for example browser=firefox).
+    \\-c, --categories          list available app categories (browser, terminal, etc)
 ;
 
 const params = clap.parseParamsComptime(Help);
