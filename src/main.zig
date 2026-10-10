@@ -51,7 +51,7 @@ pub fn main(init: std.process.Init) !void {
 }
 
 pub fn listAvailable(application: []const u8, mime_info_file: *std.Io.Reader, apps_dir: std.Io.Dir, io: std.Io, out: *std.Io.Writer, allocator: std.mem.Allocator) !void {
-    const relevant_category = try Parse.Fields.getFieldByNameRuntime(application, DefaultApps, &DefaultApps.mimeApps, ?[]const u8);
+    const relevant_category = try Parse.Fields.getFieldByNameRuntime(application, DefaultApps, &DefaultApps.MimeApps, ?[]const u8);
 
     const mime_info =
         if (relevant_category) |category|
@@ -60,11 +60,18 @@ pub fn listAvailable(application: []const u8, mime_info_file: *std.Io.Reader, ap
                 try MimeInfo.Category.fromString(category),
                 allocator,
             ) orelse return error.ItemNotFound).apps
-        else
-            try desktopFileInfo.getByCategory("TerminalEmulator", apps_dir, io, allocator);
+        else blk: {
+            const category = try Parse.Fields.getFieldByNameRuntime(
+                application,
+                DefaultApps,
+                &DefaultApps.AppCategories,
+                ?[]const u8,
+            );
+            break :blk try desktopFileInfo.getByCategory(category orelse return error.ItemNotFound, apps_dir, io, allocator);
+        };
 
     for (mime_info.items) |app| {
-        try out.print("app: {s}\n", .{app});
+        try out.print("{s}\n", .{app});
     }
 }
 const std = @import("std");

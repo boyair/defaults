@@ -116,7 +116,13 @@ test "init" {
 }
 
 /// categories to look for when searching the current default mime app.
-pub const mimeApps: Self = .{
+pub const AppCategories = Self{
+    .browser = "WebBrowser",
+    .terminal = "TerminalEmulator",
+    .@"file-manager" = "FileManager",
+    .@"text-editor" = "TextEditor",
+};
+pub const MimeApps: Self = .{
     .browser = "x-scheme-handler/https",
     .@"image-viewer" = "image/png",
     .@"video-player" = "video/mp4",
@@ -124,7 +130,6 @@ pub const mimeApps: Self = .{
     .@"file-manager" = "inode/directory",
     .@"pdf-viewer" = "application/pdf",
 };
-
 const std = @import("std");
 const Self = @This();
 const parse = @import("parse.zig");
