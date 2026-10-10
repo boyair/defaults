@@ -5,6 +5,7 @@ pub fn main(init: std.process.Init) !void {
     defer config_dir.close(io);
     const applications_dir = try utils.globalApplocationsDir(init);
     const mime_file = try applications_dir.openFile(io, "mimeinfo.cache", .{});
+    var buf: [4096]u8 = undefined; //buffer used for reading files throughout the program
 
     var diag = clap.Diagnostic{};
     var res = clap.parse(clap.Help, &params, Parse.Clap.Parsers, init.minimal.args, .{ .diagnostic = &diag, .allocator = init.gpa }) catch |err| {
@@ -13,9 +14,12 @@ pub fn main(init: std.process.Init) !void {
     };
     defer res.deinit();
 
-    var apps = try DefaultApps.initParse(try config_dir.readFileAlloc(io, "defaults.csv", arena, .unlimited), arena);
+    var apps = blk: {
+        const defualts_file = try config_dir.openFile(io, "defaults.csv", .{});
+        var reader = defualts_file.reader(io, &buf);
+        break :blk try DefaultApps.initParse(&reader.interface, arena);
+    };
 
-    var buf: [4096]u8 = undefined; //buffer used for reading files throughout the program
     var console_writer = Io.File.stdout().writer(io, &buf);
 
     if (res.args.run) |run| {
