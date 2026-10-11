@@ -17,7 +17,16 @@ pub fn main(init: std.process.Init) !void {
     defer res.deinit();
 
     var apps = blk: {
-        const defualts_file = try config_dir.openFile(io, "sdef/defaults.csv", .{});
+        const defualts_file = config_dir.openFile(io, "sdef/defaults.csv", .{}) catch |err|
+            switch (err) {
+                error.FileNotFound => try config_dir.createFile(io, "sdef/defaults.csv", .{ .read = true }),
+                else => {
+                    std.log.err("failed to open config file", .{});
+                    return err;
+                },
+            };
+
+        defer defualts_file.close(io);
         var reader = defualts_file.reader(io, &buf);
         break :blk try DefaultApps.initParse(&reader.interface, arena);
     };
