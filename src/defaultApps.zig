@@ -6,6 +6,16 @@ terminal: ?[]const u8 = null,
 @"image-viewer": ?[]const u8 = null,
 @"pdf-viewer": ?[]const u8 = null,
 
+/// generates a new struct with the same field names as DefaultApps
+/// but with a custom type instead of the default ?[]const u8.
+///
+/// does not share the same custom functions with DeafaultApps.
+pub fn customTypeData(field_type: type) type {
+    const fieldNames = std.meta.fieldNames(Self);
+    const ret = @Struct(.auto, null, fieldNames, &@splat(field_type), &@splat(.{}));
+    return ret;
+}
+
 /// recives config file content as a string.
 /// parses it to initiallize a struct.
 /// returns initiallized struct.
@@ -115,7 +125,7 @@ test "init" {
 }
 
 /// categories to look for when searching the current default mime app.
-pub const AppCategories = Self{
+pub const MimeAppCategories = Self{
     .browser = "WebBrowser",
     .terminal = "TerminalEmulator",
     .@"file-manager" = "FileManager",

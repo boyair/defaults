@@ -1,10 +1,11 @@
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
     const arena: std.mem.Allocator = init.arena.allocator();
-    const config_dir = try utils.homeSubDir(init, ".config/sdef");
+    const config_dir = try utils.homeSubDir(init, ".config/");
     defer config_dir.close(io);
     const applications_dir = try utils.globalApplocationsDir(init);
-    const mime_file = try applications_dir.openFile(io, "mimeinfo.cache", .{});
+    const mime_info_file = try applications_dir.openFile(io, "mimeinfo.cache", .{});
+    const mime_list_file = try config_dir.createFile(io, "mimeapps.list", .{});
     var buf: [4096]u8 = undefined; //buffer used for reading files throughout the program
 
     var diag = clap.Diagnostic{};
@@ -16,7 +17,7 @@ pub fn main(init: std.process.Init) !void {
     defer res.deinit();
 
     var apps = blk: {
-        const defualts_file = try config_dir.openFile(io, "defaults.csv", .{});
+        const defualts_file = try config_dir.openFile(io, "sdef/defaults.csv", .{});
         var reader = defualts_file.reader(io, &buf);
         break :blk try DefaultApps.initParse(&reader.interface, arena);
     };
@@ -39,6 +40,8 @@ pub fn main(init: std.process.Init) !void {
             std.log.err("expected App key, found {s}\n", .{set.key});
             return err;
         };
+        var writer = mime_list_file.writer(io, &buf);
+        try MimeWrite.mimeWrite(&writer.interface, apps);
         try utils.updateConfig(apps, config_dir, io);
         std.log.info("set {s} to {s}", set);
     } else if (res.args.log != 0) {
@@ -47,7 +50,7 @@ pub fn main(init: std.process.Init) !void {
     } else if (res.args.help != 0) {
         std.log.info("\n{s}\n", .{Help});
     } else if (res.args.available) |application| {
-        var reader = mime_file.reader(io, &buf);
+        var reader = mime_info_file.reader(io, &buf);
         try listAvailable(application, &reader.interface, applications_dir, io, &console_writer.interface, arena);
         try console_writer.flush();
     } else if (res.args.categories != 0) {
@@ -56,6 +59,8 @@ pub fn main(init: std.process.Init) !void {
         }
         try console_writer.flush();
     } else {
+        var writer = mime_list_file.writer(io, &buf);
+        try MimeWrite.mimeWrite(&writer.interface, apps);
         try utils.updateConfig(apps, config_dir, io);
     }
 }
@@ -74,7 +79,7 @@ pub fn listAvailable(application: []const u8, mime_info_file: *std.Io.Reader, ap
             const category = try Parse.Fields.getFieldByNameRuntime(
                 application,
                 DefaultApps,
-                &DefaultApps.AppCategories,
+                &DefaultApps.MimeAppCategories,
                 ?[]const u8,
             );
             break :blk try desktopFileInfo.getByCategory(category orelse return error.ItemNotFound, apps_dir, io, allocator);
@@ -92,6 +97,7 @@ const utils = @import("utils.zig");
 const Parse = @import("parse.zig");
 const MimeInfo = @import("mimeInfo.zig");
 const desktopFileInfo = @import("desktopFileInfo.zig");
+const MimeWrite = @import("mimeAppsWrite.zig");
 const Help: []const u8 =
     \\-h, --help                Display this help and exit.
     \\-l, --log                 Display active config.
