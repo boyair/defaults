@@ -5,7 +5,7 @@ pub fn main(init: std.process.Init) !void {
     defer config_dir.close(io);
     const applications_dir = try utils.globalApplocationsDir(init);
     const mime_info_file = try applications_dir.openFile(io, "mimeinfo.cache", .{});
-    const mime_list_file = try config_dir.createFile(io, "mimeapps.list", .{});
+    var mime_list_file: std.Io.File = undefined;
     var buf: [4096]u8 = undefined; //buffer used for reading files throughout the program
 
     var diag = clap.Diagnostic{};
@@ -49,6 +49,7 @@ pub fn main(init: std.process.Init) !void {
             std.log.err("expected App key, found {s}\n", .{set.key});
             return err;
         };
+        mime_list_file = try config_dir.createFile(io, "mimeapps.list", .{});
         var writer = mime_list_file.writer(io, &buf);
         try MimeWrite.mimeWrite(&writer.interface, apps);
         try utils.updateConfig(apps, config_dir, io);
@@ -68,6 +69,7 @@ pub fn main(init: std.process.Init) !void {
         }
         try console_writer.flush();
     } else {
+        mime_list_file = try config_dir.createFile(io, "mimeapps.list", .{});
         var writer = mime_list_file.writer(io, &buf);
         try MimeWrite.mimeWrite(&writer.interface, apps);
         try utils.updateConfig(apps, config_dir, io);
