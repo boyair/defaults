@@ -20,17 +20,16 @@ pub fn customTypeData(field_type: type) type {
 /// parses it to initiallize a struct.
 /// returns initiallized struct.
 /// can fail when file content is invalid.
-pub fn initParse(file: *std.Io.Reader, allocator: std.mem.Allocator) (std.Io.Reader.DelimiterError || Parse.ParseError)!Self {
+pub fn initParse(file: *std.Io.Reader, allocator: std.mem.Allocator) (error{OutOfMemory} || std.Io.Reader.DelimiterError || Parse.ParseError)!Self {
     var ret: Self = .{};
     var line_number: usize = 1;
     while (try file.takeDelimiter('\n')) |line| {
-        if (Parse.trim(line).len == 0) continue; //ignore empty or whitespaces lines
-        const result = parseLine(line, allocator) catch |err| {
+        var result = Parse.CSV.parseLine(line, allocator) catch |err| {
             std.log.err("failed to read line: {d}\n", .{line_number});
             return err;
         };
-        defer allocator.free(result.class);
-        if (!StructFieldParser.setFieldByNameRuntime(result.class, Self, &ret, result.name)) {
+        defer Utils.destroyStringArray(&result, allocator);
+        if (!StructFieldParser.setFieldByNameRuntime(result.items[0], Self, &ret, try Utils.cloneString(result.items[1], allocator))) {
             std.log.err("failed to read line: {d}\n", .{line_number});
             return Parse.ParseError.ItemMismatch;
         }
@@ -38,6 +37,7 @@ pub fn initParse(file: *std.Io.Reader, allocator: std.mem.Allocator) (std.Io.Rea
     }
     return ret;
 }
+
 pub fn getFieldByName(self: *const Self, field: []const u8) Parse.ParseError!?[]const u8 {
     return Parse.Fields.getFieldByNameRuntime(field, Self, self, ?[]const u8);
 }
@@ -69,30 +69,6 @@ fn isValidClass(class: []const u8) bool {
 // recives a line of a csv as a string.
 // returns a struct containing the class and name parsed from the line.
 // can fail when line is invalid.
-fn parseLine(line: []const u8, allocator: std.mem.Allocator) Parse.ParseError!AppInfo {
-    var ret: AppInfo = undefined;
-    var split = std.mem.splitScalar(u8, line, ',');
-
-    // get class string
-    if (split.next()) |class| {
-        const trimmed = Parse.trim(class);
-        ret.class = allocator.alloc(u8, trimmed.len) catch unreachable;
-        @memcpy(ret.class, trimmed);
-    } else {
-        return Parse.ParseError.TooFewItems;
-    }
-
-    // get name string
-    if (split.next()) |name| {
-        const trimmed = Parse.trim(name);
-        ret.name = allocator.alloc(u8, trimmed.len) catch unreachable;
-        @memcpy(ret.name, trimmed);
-    } else {
-        return Parse.ParseError.TooFewItems;
-    }
-
-    return ret;
-}
 
 fn deinit(self: *Self, allocator: std.mem.Allocator) void {
     inline for (std.meta.fields(@TypeOf(self.*))) |field| {
@@ -102,11 +78,6 @@ fn deinit(self: *Self, allocator: std.mem.Allocator) void {
         }
     }
 }
-
-const AppInfo = struct {
-    class: []u8,
-    name: []u8,
-};
 
 const StructFieldParser = @import("parse.zig").Fields;
 
@@ -142,6 +113,7 @@ pub const MimeApps: Self = .{
 const std = @import("std");
 const Self = @This();
 const Parse = @import("parse.zig");
+const Utils = @import("utils.zig");
 
 //const getString()
 //@typeInfo(ApplicationTypes).@"enum".fields

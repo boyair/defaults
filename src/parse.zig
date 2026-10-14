@@ -28,6 +28,26 @@ pub fn splitToArr(string: []const u8, delimiters: []const u8, allocator: std.mem
     return ret;
 }
 
+pub const CSV = struct {
+    /// Parses a line of CSV while removing whitspaces.
+    /// returned array owns its strings
+    pub fn parseLine(line: []const u8, allocator: std.mem.Allocator) (error{OutOfMemory} || ParseError)!std.ArrayList([]const u8) {
+        const trimmed_line = trim(line);
+        if (trimmed_line.len == 0)
+            return ParseError.TooFewItems;
+        var it = std.mem.tokenizeAny(u8, trimmed_line, &.{','});
+        var ret = try std.ArrayList([]const u8).initCapacity(allocator, 1);
+        errdefer Utils.destroyStringArray(&ret, allocator);
+        while (it.next()) |item| {
+            const trimmed_item = trim(item);
+            if (trimmed_item.len > 0) {
+                try ret.append(allocator, try Utils.cloneString(trimmed_item, allocator));
+            }
+        }
+        return ret;
+    }
+};
+
 pub const Mime = struct {
     pub fn findInFile(reader: *std.Io.Reader, category: MimeInfo.Category, allocator: std.mem.Allocator) (ParseError || error{ OutOfMemory, ReadFailed, StreamTooLong })!?MimeInfo {
         while (try reader.takeDelimiter('\n')) |line| {
@@ -92,6 +112,24 @@ pub const Clap = struct {
     /// struct used to parse KEY=VALUE pairs
     pub const Parsers = .{ .str = clap.parsers.string, .set = KeyValuePair.init };
 };
+
+test "parse CSV" {
+    {
+        const line = ",,apple, , ,banana,,orange";
+        var ret = try CSV.parseLine(line, std.testing.allocator);
+        defer Utils.destroyStringArray(&ret, std.testing.allocator);
+        try std.testing.expectEqual(3, ret.items.len);
+        try std.testing.expectEqualDeep("apple", ret.items[0]);
+        try std.testing.expectEqualDeep("banana", ret.items[1]);
+        try std.testing.expectEqualDeep("orange", ret.items[2]);
+    }
+    {
+        const line = ",,, , ,,,";
+        var ret = try CSV.parseLine(line, std.testing.allocator);
+        defer Utils.destroyStringArray(&ret, std.testing.allocator);
+        try std.testing.expectEqual(0, ret.items.len);
+    }
+}
 
 test "mime file parse" {
     //reading line 245 in test mime file
