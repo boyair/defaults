@@ -11,9 +11,8 @@ terminal: ?[]const u8 = null,
 ///
 /// does not share the same custom functions with DeafaultApps.
 pub fn customTypeData(field_type: type) type {
-    const fieldNames = std.meta.fieldNames(Self);
-    const ret = @Struct(.auto, null, fieldNames, &@splat(field_type), &@splat(.{}));
-    return ret;
+    const field_names = std.meta.fieldNames(Self);
+    return @Struct(.auto, null, field_names, &@splat(field_type), &@splat(.{}));
 }
 
 /// recives config file content as a string.

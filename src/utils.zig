@@ -1,5 +1,15 @@
 pub const ApplicationPath = "/usr/share/applications";
 
+/// waits for user to enter a number and returns it
+pub fn getNumber(io: std.Io) (error{ ReadFailed, StreamTooLong } || parse.ParseError)!i32 {
+    var buf: [64]u8 = undefined;
+    var reader = std.Io.File.stdin().readerStreaming(io, &buf);
+    const string = try reader.interface.takeDelimiter('\n') orelse return parse.ParseError.ItemMismatch;
+    const ret = std.fmt.parseInt(i32, parse.trim(string), 10) catch return parse.ParseError.ItemMismatch;
+    return ret;
+}
+
+/// takes an array oif strings and destroy the array and all its inner strings
 pub fn destroyStringArray(array: *std.ArrayList([]const u8), allocator: std.mem.Allocator) void {
     for (array.items) |string| {
         allocator.free(string);
