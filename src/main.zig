@@ -57,7 +57,7 @@ pub fn main(init: std.process.Init) !void {
         var reader = mime_info_file.reader(io, &buf);
         var items = try getAvailable(set, &reader.interface, applications_dir, io, arena);
         defer utils.destroyStringArray(&items, arena);
-        try console_writer.interface.print("choose your default by entering a number {s}", .{set});
+        try console_writer.interface.print("choose your default by entering a number {s}\n", .{set});
         try console_writer.interface.print("0. abort (dont change)\n", .{});
         for (items.items, 1..) |item, idx| {
             try console_writer.interface.print("{d}. {s}\n", .{ idx, item });
