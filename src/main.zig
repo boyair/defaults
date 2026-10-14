@@ -1,6 +1,6 @@
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
-    const arena: std.mem.Allocator = init.arena.allocator();
+    const arena: std.mem.Allocator = init.arena;
     const config_dir = try utils.homeSubDir(init, ".config/");
     defer config_dir.close(io);
     const applications_dir = try utils.globalApplocationsDir(init);
@@ -16,7 +16,7 @@ pub fn main(init: std.process.Init) !void {
     };
     defer res.deinit();
 
-    var apps = blk: {
+    var apps: DefaultApps = blk: {
         const defualts_file = config_dir.openFile(io, "sdef/defaults.csv", .{}) catch |err|
             switch (err) {
                 error.FileNotFound => try config_dir.createFile(io, "sdef/defaults.csv", .{ .read = true }),
@@ -25,12 +25,12 @@ pub fn main(init: std.process.Init) !void {
                     return err;
                 },
             };
-
         defer defualts_file.close(io);
         var reader = defualts_file.reader(io, &buf);
         break :blk try DefaultApps.initParse(&reader.interface, arena);
     };
 
+    defer apps.deinit(arena);
     var console_writer = Io.File.stdout().writer(io, &buf);
 
     if (res.args.run) |run| {
@@ -39,13 +39,17 @@ pub fn main(init: std.process.Init) !void {
             return err;
         } orelse return error.ItemNotFound;
         const command = try std.fs.path.join(arena, &.{ utils.ApplicationPath, app });
+        defer arena.free(command);
         std.debug.print("command: {s}\n", .{command});
         _ = std.process.spawn(io, .{ .argv = &.{ "gio", "launch", command }, .stdin = .ignore, .stdout = .ignore, .stderr = .ignore }) catch |err| {
             std.log.err("command \"{s}\" not found", .{command});
             return err;
         };
     } else if (res.args.set) |set| {
-        apps.setFieldByName(set.key, set.value) catch |err| {
+        //free precvious value
+        try apps.freeFieldByName(set.key, arena);
+
+        apps.setFieldByName(set.key, try utils.cloneString(set.value, arena)) catch |err| {
             std.log.err("expected App key, found {s}\n", .{set.key});
             return err;
         };
@@ -79,14 +83,16 @@ pub fn main(init: std.process.Init) !void {
 pub fn listAvailable(application: []const u8, mime_info_file: *std.Io.Reader, apps_dir: std.Io.Dir, io: std.Io, out: *std.Io.Writer, allocator: std.mem.Allocator) !void {
     const relevant_category = try Parse.Fields.getFieldByNameRuntime(application, DefaultApps, &DefaultApps.MimeApps, ?[]const u8);
 
-    const mime_info =
-        if (relevant_category) |category|
-            (try Parse.Mime.findInFile(
+    var mime_info =
+        if (relevant_category) |category| blk: {
+            const mime_info = try Parse.Mime.findInFile(
                 mime_info_file,
                 try MimeInfo.Category.fromString(category),
                 allocator,
-            ) orelse return error.ItemNotFound).apps
-        else blk: {
+            ) orelse return error.ItemNotFound;
+            mime_info.category.deinit(allocator);
+            break :blk mime_info.apps;
+        } else blk: {
             const category = try Parse.Fields.getFieldByNameRuntime(
                 application,
                 DefaultApps,
@@ -95,6 +101,7 @@ pub fn listAvailable(application: []const u8, mime_info_file: *std.Io.Reader, ap
             );
             break :blk try desktopFileInfo.getByCategory(category orelse return error.ItemNotFound, apps_dir, io, allocator);
         };
+    defer utils.destroyStringArray(&mime_info, allocator);
 
     for (mime_info.items) |app| {
         try out.print("{s}\n", .{app});
