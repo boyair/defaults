@@ -77,7 +77,6 @@ pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
     inline for (std.meta.fields(@TypeOf(self.*))) |field| {
         const val = @field(self.*, field.name);
         if (val) |str| {
-            std.debug.print("freed : {s}\n", .{field.name});
             allocator.free(str);
         }
     }
