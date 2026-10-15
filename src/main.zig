@@ -102,7 +102,7 @@ pub fn main(init: std.process.Init) !void {
         var items = try getAvailable(application, &reader.interface, applications_dir, io, arena);
         defer utils.destroyStringArray(&items, arena);
         for (items.items) |item| {
-            try console_writer.interface.print("app: {s}", .{item});
+            try console_writer.interface.print("app: {s}\n", .{item});
         }
         try console_writer.flush();
     } else if (res.args.categories != 0) {
