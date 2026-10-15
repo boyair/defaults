@@ -1,5 +1,13 @@
 pub const ApplicationPath = "/usr/share/applications";
 
+/// returns if an error belongs to an error set
+pub fn errorInSet(err: anyerror, comptime Set: type) bool {
+    const fields = @typeInfo(Set).error_set orelse return false;
+    inline for (fields) |field| {
+        if (err == @field(Set, field.name)) return true;
+    }
+    return false;
+}
 /// waits for user to enter a number and returns it
 pub fn getNumber(io: std.Io) (error{ ReadFailed, StreamTooLong } || parse.ParseError)!i32 {
     var buf: [64]u8 = undefined;

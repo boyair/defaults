@@ -63,7 +63,12 @@ pub fn getByCategory(category: []const u8, dir: std.Io.Dir, io: std.Io, allocato
         if (entery.name.len >= 9 and Parse.endsWith(entery.name, ".desktop")) {
             const file = try dir.openFile(io, entery.name, .{});
             var reader = file.reader(io, buff);
-            var info: Self = try Self.initParse(&reader.interface, allocator);
+            var info: Self = Self.initParse(&reader.interface, allocator) catch |err| {
+                if (Utils.errorInSet(err, Parse.ParseError)) {
+                    std.log.warn("failed to check file {s}.\nfile may be corrupted\n skiping...", .{entery.name});
+                    continue;
+                } else return err;
+            };
             defer info.deinit(allocator);
             if (info.categories) |categories| {
                 for (categories.items) |cat| {
