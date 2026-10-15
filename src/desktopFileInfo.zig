@@ -3,15 +3,23 @@ const Parse = @import("parse.zig");
 const Utils = @import("utils.zig");
 const Self = @This();
 
-is_application: bool = false,
+is_application: ?bool = null,
 //TODO: add is_hidden parameter back once i know the syntex and what it does.
 //is_hidden: bool = false,
 command: ?[]const u8 = null,
 categories: ?std.ArrayList([]const u8) = null,
 
+fn fullyInitiallized(self: *const Self) bool {
+    inline for (std.meta.fields(Self)) |fd| {
+        if (@field(self, fd.name) == null) return false;
+    }
+    return true;
+}
+
 pub fn initParse(reader: *std.Io.Reader, allocator: std.mem.Allocator) !Self {
     var ret: Self = .{};
     while (try reader.takeDelimiter('\n')) |line| {
+        if (ret.fullyInitiallized()) break;
         //TODO: replace this line once i know what to do with a title
         if (Parse.trim(line).len == 0 or line[0] == '[' or line[0] == '#') continue;
         try parseLine(line, allocator, &ret);
