@@ -19,7 +19,7 @@ pub fn main(init: std.process.Init) !void {
     defer res.deinit();
 
     var apps: DefaultApps = blk: {
-        const defualts_file = sdef_dir.createFile(io, "defaults.csv", .{ .read = true, .truncate = false });
+        const defualts_file = try sdef_dir.createFile(io, "defaults.csv", .{ .read = true, .truncate = false });
         defer defualts_file.close(io);
         var reader = defualts_file.reader(io, &buf);
         break :blk try DefaultApps.initParse(&reader.interface, arena);
