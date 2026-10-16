@@ -3,6 +3,8 @@ pub fn main(init: std.process.Init) !void {
     const arena: std.mem.Allocator = init.arena.allocator();
     const config_dir = try utils.homeSubDir(init, ".config/");
     defer config_dir.close(io);
+    const sdef_dir = try config_dir.createDirPathOpen(io, "sdef/", .{});
+    defer sdef_dir.close(io);
     const applications_dir = try utils.globalApplocationsDir(init);
     const mime_info_file = try applications_dir.openFile(io, "mimeinfo.cache", .{});
     var mime_list_file: std.Io.File = undefined;
@@ -17,14 +19,7 @@ pub fn main(init: std.process.Init) !void {
     defer res.deinit();
 
     var apps: DefaultApps = blk: {
-        const defualts_file = config_dir.openFile(io, "sdef/defaults.csv", .{}) catch |err|
-            switch (err) {
-                error.FileNotFound => try config_dir.createFile(io, "sdef/defaults.csv", .{ .read = true }),
-                else => {
-                    std.log.err("failed to open config file", .{});
-                    return err;
-                },
-            };
+        const defualts_file = sdef_dir.createFile(io, "defaults.csv", .{ .read = true, .truncate = false });
         defer defualts_file.close(io);
         var reader = defualts_file.reader(io, &buf);
         break :blk try DefaultApps.initParse(&reader.interface, arena);
@@ -90,7 +85,7 @@ pub fn main(init: std.process.Init) !void {
         mime_list_file = try config_dir.createFile(io, "mimeapps.list", .{});
         var writer = mime_list_file.writer(io, &buf);
         try MimeWrite.mimeWrite(&writer.interface, apps);
-        try utils.updateConfig(apps, config_dir, io);
+        try utils.updateConfig(apps, sdef_dir, io);
         std.log.info("set {s} to {s}", .{ set, chosen });
     } else if (res.args.log != 0) {
         try apps.print(&console_writer.interface, ':');
@@ -114,7 +109,7 @@ pub fn main(init: std.process.Init) !void {
         mime_list_file = try config_dir.createFile(io, "mimeapps.list", .{});
         var writer = mime_list_file.writer(io, &buf);
         try MimeWrite.mimeWrite(&writer.interface, apps);
-        try utils.updateConfig(apps, config_dir, io);
+        try utils.updateConfig(apps, sdef_dir, io);
     }
 }
 

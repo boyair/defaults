@@ -1,7 +1,6 @@
 
 # short term
 * create a readme
-* create sdef folder if doent already exist
 * move code away from main function to helper functions because main is too complex
 * read all folders that contains .desktop files and mime info files instead of just /usr/share/applications
 * remove dependency on gio and cache exec commands to improve performance

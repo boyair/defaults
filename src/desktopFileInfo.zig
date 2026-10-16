@@ -104,7 +104,7 @@ test "get by category" {
     const folder = try std.Io.Dir.openDirAbsolute(std.testing.io, "/usr/share/applications", .{ .iterate = true });
     var terminals = try getByCategory("TerminalEmulator", folder, std.testing.io, std.testing.allocator);
     defer Utils.destroyStringArray(&terminals, std.testing.allocator);
-    const terminal_apps = [_][]const u8{ "com.mitchellh.ghostty.desktop", "com.system76.CosmicTerm.desktop", "Alacritty.desktop" };
+    const terminal_apps = [_][]const u8{ "com.mitchellh.ghostty.desktop", "com.system76.CosmicTerm.desktop", "Alacritty.desktop" }; // expected terminal apps
     const non_terminal_apps = [_][]const u8{ "com.system76.CosmicSettings.Keyboard.desktop", "com.github.xournalpp.xournalpp.desktop", "com.shellyorg.shelly.desktop" };
     for (terminal_apps) |app| {
         try std.testing.expectEqual(true, Utils.contains(terminals, app));

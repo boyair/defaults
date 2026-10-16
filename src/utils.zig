@@ -44,7 +44,7 @@ pub fn homeSubDir(init: std.process.Init, sub_path: []const u8) !std.Io.Dir {
 
 pub fn updateConfig(apps: DefaultApps, config_dir: std.Io.Dir, io: std.Io) !void {
     var buf: [4096]u8 = undefined;
-    const config_file = try config_dir.createFile(io, "sdef/defaults.csv", .{});
+    const config_file = try config_dir.createFile(io, "defaults.csv", .{});
     defer config_file.close(io);
     var config_writer = config_file.writer(io, &buf);
     try apps.print(&config_writer.interface, ',');
