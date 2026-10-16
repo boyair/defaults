@@ -9,6 +9,7 @@ is_application: ?bool = null,
 command: ?[]const u8 = null,
 categories: ?std.ArrayList([]const u8) = null,
 
+/// returns if all fields are non null
 fn fullyInitiallized(self: *const Self) bool {
     inline for (std.meta.fields(Self)) |fd| {
         if (@field(self, fd.name) == null) return false;
@@ -19,7 +20,7 @@ fn fullyInitiallized(self: *const Self) bool {
 pub fn initParse(reader: *std.Io.Reader, allocator: std.mem.Allocator) !Self {
     var ret: Self = .{};
     while (try reader.takeDelimiter('\n')) |line| {
-        if (ret.fullyInitiallized()) break;
+        if (ret.fullyInitiallized()) break; // stops reading files if object is fully initiallized
         //TODO: replace this line once i know what to do with a title
         if (Parse.trim(line).len == 0 or line[0] == '[' or line[0] == '#') continue;
         try parseLine(line, allocator, &ret);
