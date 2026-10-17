@@ -9,7 +9,9 @@
 * make a tag
 * add writing to DE specific 'mimeapp.list' to better support DEs
 * better source file names
+* upgrade to zig 0.17
 
 # long term
 * make a gui app (the gui can simply wrap the cli instead of being a standalone)
 * make an API so desktop shells can integrate this easily (possibly only allow to use cli under the hood instead)
+* create .desktop files that link to default apps so user can pin them to a taskbar and it will automatically change
